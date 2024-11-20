@@ -6,10 +6,9 @@
 ;; Each feature is a key with a boolean value indicating whether it's enabled
 (defonce feature-flags 
   (atom {
-    ;; Example features
     :task-deletion-enabled true    ; Control task deletion feature
     :task-completion-enabled true  ; Control task completion feature
-    :dark-mode-enabled false       ; Example of a UI feature flag
+    :dark-mode-enabled false       ; UI feature flag
   }))
 
 ;; Function to check if a specific feature is enabled
