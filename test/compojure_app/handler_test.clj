@@ -1,44 +1,56 @@
 (ns compojure-app.handler-test
   "Test namespace for verifying task management functionality"
   (:require 
-   ;; Import testing and application namespaces
-   [clojure.test :refer :all]     ; Clojure testing framework macros
-   [compojure-app.handler :refer :all]  ; Main application handler
-   [compojure-app.tasks :as tasks]))    ; Tasks management namespace
+   [clojure.test :refer :all]     
+   [compojure-app.handler :refer :all]  
+   [compojure-app.tasks :as tasks]
+   [compojure-app.features :as features]))
 
-;; Test case for adding a new task
+;; Test case for adding a new task with feature flag
 (deftest test-add-task
-  ;; Description of what this test verifies
-  (testing "Adding a new task"
-    ;; Store the initial number of tasks
+  (testing "Adding a new task when feature is enabled"
+    ;; Enable task completion feature for the test
+    (features/set-feature! :task-completion-enabled true)
     (let [initial-count (count (tasks/get-tasks))
-          ;; Add a new task and capture its ID
           _ (tasks/add-task "Test Task")]
-      ;; Assert that the task count has increased by 1
-      (is (= (inc initial-count) (count (tasks/get-tasks)))))))
+      (is (= (inc initial-count) (count (tasks/get-tasks))))
+    
+    (testing "Adding a task when feature is disabled"
+      ;; Disable task completion feature
+      (features/set-feature! :task-completion-enabled false)
+      (let [current-count (count (tasks/get-tasks))]
+        (tasks/add-task "Disabled Feature Task")
+        ;; Count should remain the same when feature is disabled
+        (is (= current-count (count (tasks/get-tasks))))))))
 
-;; Test case for completing a task
+;; Test case for completing a task with feature flag
 (deftest test-complete-task
-  ;; Description of what this test verifies
-  (testing "Completing a task"
-    ;; Add a new task to complete
+  (testing "Completing a task when feature is enabled"
+    (features/set-feature! :task-completion-enabled true)
     (let [task-id (tasks/add-task "Task to Complete")
-          ;; Mark the task as complete
           _ (tasks/complete-task task-id)
-          ;; Find the completed task in the task list
           completed-task (first (filter #(= (:id %) task-id) (tasks/get-tasks)))]
-      ;; Assert that the task is now marked as completed
-      (is (:completed completed-task)))))
+      (is (:completed completed-task)))
+  
+  (testing "Task not completed when feature is disabled"
+    (features/set-feature! :task-completion-enabled false)
+    (let [task-id (tasks/add-task "Task Not to Complete")
+          _ (tasks/complete-task task-id)
+          unchanged-task (first (filter #(= (:id %) task-id) (tasks/get-tasks)))]
+      (is (not (:completed unchanged-task))))))
 
-;; Test case for deleting a task
+;; Test case for deleting a task with feature flag
 (deftest test-delete-task
-  ;; Description of what this test verifies
-  (testing "Deleting a task"
-    ;; Store the initial number of tasks
+  (testing "Deleting a task when feature is enabled"
+    (features/set-feature! :task-deletion-enabled true)
     (let [initial-count (count (tasks/get-tasks))
-          ;; Add a task to delete
           task-id (tasks/add-task "Task to Delete")
-          ;; Delete the task
           _ (tasks/delete-task task-id)]
-      ;; Assert that the task count has returned to the initial count
-      (is (= initial-count (count (tasks/get-tasks)))))))
+      (is (= initial-count (count (tasks/get-tasks)))))
+  
+  (testing "Task not deleted when feature is disabled"
+    (features/set-feature! :task-deletion-enabled false)
+    (let [initial-count (count (tasks/get-tasks))
+          task-id (tasks/add-task "Task Not to Delete")
+          _ (tasks/delete-task task-id)]
+      (is (= (inc initial-count) (count (tasks/get-tasks)))))))
