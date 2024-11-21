@@ -2,92 +2,88 @@
   "Main application handler for the task manager.
    Defines routes, middleware, and rendering logic."
   (:require 
-    ;; Compojure routing library
+    ;; Existing requires
     [compojure.core :refer :all]
     [compojure.route :as route]
-    
-    ;; Ring middleware for JSON and parameter handling
     [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
     [ring.middleware.params :refer [wrap-params]]
-    
-    ;; Jetty web server adapter
     [ring.adapter.jetty :refer [run-jetty]]
-    
-    ;; HTML generation library
     [hiccup.core :as h]
-    
-    ;; Local tasks namespace
+
+    ;; Add feature flags namespace
+    [compojure-app.features :as features]
     [compojure-app.tasks :as tasks]))
 
-;; Generate the home page HTML
+;; Updated home page to conditionally render features
 (defn home-page 
-  "Renders the main task manager page.
-   Uses Hiccup to generate HTML with dynamic task list."
+  "Renders the main task manager page with feature-flagged elements."
   []
   (h/html
    [:html
-    ;; Page head with basic styling
     [:head
      [:title "Task Manager"]
-     ;; Inline CSS for basic styling
      [:style "body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }"]]
     [:body
-     ;; Page title
      [:h1 "Task Manager"]
-     
-     ;; Task input form
-     [:form {:method "post" :action "/tasks"}
-      ;; Text input for new task title
-      [:input {:type "text" :name "title" :placeholder "Enter task title"}]
-      ;; Submit button
-      [:button {:type "submit"} "Add Task"]]
-     
-     ;; Dynamic task list rendering
+
+     ;; Display feature flag statuses
+     [:h2 "Feature Flag Statuses"]
+     [:ul
+      ;; Iterate over all feature flags and display their current status
+      (for [[feature enabled?] @features/feature-flags]
+        [:li (str (name feature) " is " (if enabled? "Enabled" "Disabled"))])]
+
+     ;; Conditional task input form based on feature flag
+     (when (features/feature-enabled? :task-completion-enabled)
+       [:form {:method "post" :action "/tasks"}
+        [:input {:type "text" :name "title" :placeholder "Enter task title"}]
+        [:button {:type "submit"} "Add Task"]])
+
+     ;; Dynamic task list rendering with feature-flagged actions
      [:ul 
-      ;; Loop through all tasks and create list items
       (for [task (tasks/get-tasks)]
         [:li 
          [:span (:title task)]
          [:span " - "]
          [:span (if (:completed task) "Completed" "Pending")]
-         [:span " "]
-         [:a {:href (str "/complete/" (:id task))} "[Complete]"]
-         [:span " "]
-         [:a {:href (str "/delete/" (:id task))} "[Delete]"]])]]]))
 
-;; Define application routes
+         ;; Conditionally render complete link
+         (when (features/feature-enabled? :task-completion-enabled)
+           [:span " "]
+           [:a {:href (str "/complete/" (:id task))} "[Complete]"])
+
+         ;; Conditionally render delete link
+         (when (features/feature-enabled? :task-deletion-enabled)
+           [:span " "]
+           [:a {:href (str "/delete/" (:id task))} "[Delete]"])])]]]))
+
+;; Updated routes with feature flag checks
 (defroutes app-routes
-  ;; Root route - display home page
+  ;; Root route remains the same
   (GET "/" [] (home-page))
-  
-  ;; Route to add a new task via POST
+
+  ;; Add task route with feature flag
   (POST "/tasks" {params :params}
-    ;; Extract task title from form parameters
-    (let [title (get params "title")]
-      ;; Add task to the task list
-      (tasks/add-task title)
-      ;; Redirect back to home page
-      {:status 302 :headers {"Location" "/"}}))
-  
-  ;; Route to mark a task as complete
+    (when (features/feature-enabled? :task-completion-enabled)
+      (let [title (get params "title")]
+        (tasks/add-task title)
+        {:status 302 :headers {"Location" "/"}})))
+
+  ;; Complete task route with feature flag
   (GET "/complete/:id" [id]
-    ;; Convert ID to integer
-    (let [task-id (Integer/parseInt id)]
-      ;; Complete the specified task
-      (tasks/complete-task task-id)
-      ;; Redirect back to home page
-      {:status 302 :headers {"Location" "/"}}))
-  
-  ;; Route to delete a task
+    (when (features/feature-enabled? :task-completion-enabled)
+      (let [task-id (Integer/parseInt id)]
+        (tasks/complete-task task-id)
+        {:status 302 :headers {"Location" "/"}})))
+
+  ;; Delete task route with feature flag
   (GET "/delete/:id" [id]
-    ;; Convert ID to integer
-    (let [task-id (Integer/parseInt id)]
-      ;; Delete the specified task
-      (tasks/delete-task task-id)
-      ;; Redirect back to home page
-      {:status 302 :headers {"Location" "/"}}))
-  
-  ;; 404 route for undefined paths
+    (when (features/feature-enabled? :task-deletion-enabled)
+      (let [task-id (Integer/parseInt id)]
+        (tasks/delete-task task-id)
+        {:status 302 :headers {"Location" "/"}})))
+
+  ;; 404 route remains the same
   (route/not-found "Not Found"))
 
 ;; Compose middleware for the application
@@ -104,5 +100,4 @@
   "Entry point for starting the web server.
    Runs Jetty on port 3000."
   []
-  ;; Start Jetty web server with our app handler
   (run-jetty app {:port 3000}))

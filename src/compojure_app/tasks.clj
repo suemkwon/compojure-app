@@ -4,7 +4,8 @@
 ;; Define an atom to store tasks, initialized with some sample tasks
 ;; Each task is a map with :id, :title, and :completed keys
 (defonce tasks (atom [{:id 1 :title "Learn Clojure" :completed false}
-                      {:id 2 :title "Build Task Manager" :completed false}]))
+                      {:id 2 :title "Build Task Manager" :completed false}
+                      {:id 3 :title "Eat Lunch" :completed false}]))
 
 ;; Retrieve all current tasks from the atom
 (defn get-tasks []
