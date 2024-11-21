@@ -1,4 +1,4 @@
-# Compojure Project
+# compojure-app
 
 This is a simple Clojure web application using the **Compojure** library for routing and **Ring** for handling HTTP requests.
 
